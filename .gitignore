@@ -33,3 +33,6 @@ example/_*
 src/_*
 
 .env
+
+# Downloaded game data (Gameforge CDN) — never commit
+test-server/data/

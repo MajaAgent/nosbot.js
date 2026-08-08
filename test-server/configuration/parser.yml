@@ -1,6 +1,6 @@
 Language: en
 Database:
-  Host: 127.0.0.1
+  Host: ${DB_HOST,127.0.0.1}
   Port: 5432
   Database: noscore
   Username: postgres

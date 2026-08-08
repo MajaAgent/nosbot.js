@@ -24,7 +24,8 @@
     "test:e2e": "node test-server/orchestrator.mjs e2e",
     "server:up": "node test-server/orchestrator.mjs up",
     "server:down": "node test-server/orchestrator.mjs down",
-    "server:seed": "node test-server/orchestrator.mjs seed"
+    "server:seed": "node test-server/orchestrator.mjs seed",
+    "server:data": "node test-server/orchestrator.mjs data"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
@@ -35,6 +36,7 @@
     "eslint-config-prettier": "^7.0.0",
     "eslint-plugin-prettier": "^3.2.0",
     "pg": "^8.22.0",
+    "pngjs": "^7.0.0",
     "prettier": "^2.2.1",
     "rimraf": "^3.0.2",
     "ts-node": "^10.9.1",

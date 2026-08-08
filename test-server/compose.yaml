@@ -42,6 +42,8 @@ services:
       - MASTER_HOST=http://master
       - DB_HOST=db
       - HOST=0.0.0.0
+      - DISPLAY_HOST=${DISPLAY_HOST:-192.168.1.21}
+      - DISPLAY_PORT=${DISPLAY_PORT:-1337}
     command: ["NosCore.WorldServer.dll"]
     ports:
       - "5001:5001"

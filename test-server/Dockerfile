@@ -11,7 +11,8 @@ RUN git clone --depth 1 https://github.com/NosCoreIO/NosCore.git . \
     && git checkout $NOSCORE_COMMIT
 RUN dotnet publish src/NosCore.WorldServer/NosCore.WorldServer.csproj -c Release -o /out \
     && dotnet publish src/NosCore.LoginServer/NosCore.LoginServer.csproj -c Release -o /out \
-    && dotnet publish src/NosCore.MasterServer/NosCore.MasterServer.csproj -c Release -o /out
+    && dotnet publish src/NosCore.MasterServer/NosCore.MasterServer.csproj -c Release -o /out \
+    && dotnet publish src/NosCore.Parser/NosCore.Parser.csproj -c Release -o /out
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 RUN apk add --no-cache icu-libs krb5-libs

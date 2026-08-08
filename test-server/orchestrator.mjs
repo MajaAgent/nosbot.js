@@ -100,6 +100,37 @@ function downServer() {
     compose("down");
 }
 
+async function runDataImport() {
+    console.log("[data] Fetching game data (OnexExplorerCli + Gameforge CDN)...");
+    run("node", [path.join(__dirname, "fetch-data.mjs")]);
+
+    console.log("[data] Running NosCore.Parser against the downloaded files...");
+    const inputDir = path.join(__dirname, "data", "parser-input");
+    const confDir = path.join(__dirname, "configuration");
+    const res = spawnSync(
+        "docker",
+        [
+            "run", "--rm",
+            "--network", "test-server_noscore-e2e-network",
+            "-e", "DB_HOST=noscore-e2e-db",
+            "-v", `${inputDir}:/data`,
+            "-v", `${confDir}:/configuration`,
+            "noscore-e2e-stack",
+            "dotnet", "NosCore.Parser.dll", "--folder", "/data",
+        ],
+        { stdio: "inherit" }
+    );
+    if (res.status !== 0) {
+        // Parser exits non-zero when some optional files are missing (e.g. packet.txt
+        // / npctalk i18n). Static data (maps, items, skills, monsters) is still imported.
+        console.log("[data] WARN: parser exited non-zero (expected if optional files missing).");
+    }
+
+    console.log("[data] Restarting world so it reloads the imported data...");
+    compose("up", "-d", "--force-recreate", "world");
+    await waitForLog("world", "Registered on MasterServer");
+}
+
 async function main() {
     const [, , command] = process.argv;
     switch (command) {
@@ -111,6 +142,13 @@ async function main() {
             break;
         case "seed":
             runSeed();
+            break;
+        case "data":
+            compose("up", "-d", "db");
+            await waitForLog("db", "ready to accept connections");
+            compose("up", "-d", "login");
+            await waitForLog("login", "Database has been initialized.");
+            await runDataImport();
             break;
         case "e2e":
             await upServer();
@@ -126,7 +164,7 @@ async function main() {
             }
             break;
         default:
-            console.error("Usage: node orchestrator.mjs <up|down|seed|e2e>");
+            console.error("Usage: node orchestrator.mjs <up|down|seed|data|e2e>");
             process.exit(1);
     }
 }
