@@ -5,11 +5,36 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 type BotConfig = NostaleBot["config"];
 
+const TEST_ACCOUNT_COUNT = parseInt(process.env.SEED_TEST_ACCOUNTS || "10");
+const TEST_PASSWORD = process.env.SEED_PASSWORD || "testpass";
+
+/** Round-robin cursor over the test account pool. */
+let accountCursor = 0;
+
+export interface TestAccount {
+    login: string;
+    password: string;
+    characterName: string;
+}
+
+/** Returns the next test account from the pool (test_1 .. test_N). */
+export function nextTestAccount(): TestAccount {
+    const index = (accountCursor % TEST_ACCOUNT_COUNT) + 1;
+    accountCursor++;
+    return {
+        login: `test_${index}`,
+        password: TEST_PASSWORD,
+        characterName: `Test${index}`,
+    };
+}
+
 /** Creates a bot with the shared test config, defaulting to `priv` auth. */
 export function createBot(overrides: Partial<BotConfig> = {}): NostaleBot {
+    const account = nextTestAccount();
     return new NostaleBot({
         ...testConfig,
-        auth: { ...testConfig.auth, type: "priv" },
+        auth: { type: "priv", login: account.login, password: account.password },
+        selectCharacter: { byName: account.characterName },
         ...overrides,
     });
 }
@@ -107,4 +132,80 @@ export async function withBot(
     } finally {
         bot.close();
     }
+}
+
+export interface Position {
+    map: number;
+    x: number;
+    y: number;
+}
+
+/** Sends a GM command (e.g. "$Teleport 1 79 116"). Requires GM authority. */
+export function runCommand(bot: NostaleBot, command: string): void {
+    bot.sendPacket(command);
+}
+
+/** Teleports the bot to (map, x, y) via the GM command `$Teleport`. */
+export function teleportTo(bot: NostaleBot, map: number, x: number, y: number): void {
+    runCommand(bot, `$Teleport ${map} ${x} ${y}`);
+}
+
+/** Heals the character to full HP/MP by raising its level via `$SetLevel`. */
+export function healBySetLevel(bot: NostaleBot, level = 16): void {
+    runCommand(bot, `$SetLevel ${level}`);
+}
+
+export interface PrepareOptions {
+    /** Teleport target before the test body runs. */
+    teleport?: { map: number; x: number; y: number };
+    /** Heal to full HP/MP by setting the level. */
+    heal?: boolean;
+    /** Extra GM commands to run before the test body. */
+    commands?: string[];
+}
+
+/**
+ * Prepares the character for a test: optional teleport, heal, and extra GM
+ * commands. Use this at the start of tests that depend on position or HP/MP
+ * so they don't rely on where the character ended up after the previous run.
+ */
+export async function prepareCharacter(bot: NostaleBot, options: PrepareOptions = {}): Promise<void> {
+    const commands: string[] = [];
+    if (options.teleport) {
+        commands.push(`$Teleport ${options.teleport.map} ${options.teleport.x} ${options.teleport.y}`);
+    }
+    if (options.heal) {
+        commands.push("$SetLevel 16");
+    }
+    commands.push(...(options.commands ?? []));
+
+    for (const command of commands) {
+        runCommand(bot, command);
+        // Give the server a moment to process each command.
+        await sleep(1500);
+    }
+}
+
+/**
+ * Reads the bot's current position by sending the GM command `$Position` and
+ * parsing the `say` response (e.g. "Map:1 - X:79 - Y:116"). Requires the
+ * account to have at least GameMaster authority.
+ */
+export function getPosition(bot: NostaleBot, { timeout = 3000 }: WaitOptions = {}): Promise<Position | null> {
+    return new Promise((resolve) => {
+        const onSay = (packet: string) => {
+            if (packet.startsWith("say") && packet.includes("Map:")) {
+                clearTimeout(timer);
+                bot.removeListener("say", onSay);
+                const match = packet.match(/Map:(\d+) - X:(\d+) - Y:(\d+)/);
+                resolve(match ? { map: +match[1], x: +match[2], y: +match[3] } : null);
+            }
+        };
+        const timer = setTimeout(() => {
+            bot.removeListener("say", onSay);
+            resolve(null);
+        }, timeout);
+        bot.on("say", onSay);
+        bot.sendPacket("$Position");
+    });
 }

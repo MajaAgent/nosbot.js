@@ -9,9 +9,7 @@ interface SeedConfig {
     user: string;
     password: string;
     database: string;
-    accountName: string;
     accountPassword: string;
-    characterName: string;
 }
 
 const config: SeedConfig = {
@@ -20,9 +18,7 @@ const config: SeedConfig = {
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASSWORD || "password",
     database: process.env.DB_DATABASE || "noscore",
-    accountName: process.env.SEED_ACCOUNT || "testbot",
     accountPassword: process.env.SEED_PASSWORD || "testpass",
-    characterName: process.env.SEED_CHARACTER || "TestBot",
 };
 
 function sha512Hex(data: string): string {
@@ -54,8 +50,8 @@ interface AccountSeed {
     characterName: string;
 }
 
-// Safe spawn on map 1 (Nosville, 160x180): cell (80,90) is walkable.
-const SPAWN = { mapId: 1, x: 80, y: 90 };
+// Safe spawn on map 1 (Nosville, 160x180): cell (79,116) is walkable.
+const SPAWN = { mapId: 1, x: 79, y: 116 };
 
 function buildMapData(width: number, height: number): Buffer {
     const buf = Buffer.alloc(4 + width * height);
@@ -156,20 +152,24 @@ async function seed(): Promise<void> {
     const client = await connectWithRetry(config);
     await waitForSchema(client);
 
-    const accounts: AccountSeed[] = [
-        {
-            name: config.accountName,
+    // Pool of test accounts so tests can rotate and never collide on one account.
+    const testAccountCount = parseInt(process.env.SEED_TEST_ACCOUNTS || "10");
+    const accounts: AccountSeed[] = [];
+    for (let i = 1; i <= testAccountCount; i++) {
+        accounts.push({
+            name: `test_${i}`,
             password: config.accountPassword,
-            authority: 0,
-            characterName: config.characterName,
-        },
-        {
-            name: process.env.SEED_ADMIN || "admin",
-            password: process.env.SEED_ADMIN_PASSWORD || "admin",
-            authority: 3,
-            characterName: process.env.SEED_ADMIN_CHARACTER || "Admin",
-        },
-    ];
+            // GameMaster (2) — lets the bot use GM commands like $Position.
+            authority: 2,
+            characterName: `Test${i}`,
+        });
+    }
+    accounts.push({
+        name: process.env.SEED_ADMIN || "admin",
+        password: process.env.SEED_ADMIN_PASSWORD || "admin",
+        authority: 3,
+        characterName: process.env.SEED_ADMIN_CHARACTER || "Admin",
+    });
 
     try {
         await client.query("BEGIN");
