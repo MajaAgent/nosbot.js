@@ -191,8 +191,16 @@ export async function prepareCharacter(bot: NostaleBot, options: PrepareOptions 
 
     for (const command of commands) {
         runCommand(bot, command);
-        // Give the server a moment to process each command.
-        await sleep(1500);
+        await sleep(500);
+    }
+
+    // Confirm the teleport actually landed instead of waiting a fixed amount.
+    if (options.teleport) {
+        await waitForPosition(
+            bot,
+            (pos) => pos.map === options.teleport!.map && pos.x === options.teleport!.x && pos.y === options.teleport!.y,
+            { timeout: 10000 }
+        );
     }
 }
 
@@ -218,4 +226,25 @@ export function getPosition(bot: NostaleBot, { timeout = 3000 }: WaitOptions = {
         bot.on("say", onSay);
         bot.sendPacket("$Position");
     });
+}
+
+/**
+ * Polls `$Position` until the predicate matches (or timeout). Useful for
+ * waiting until the server confirms a teleport / movement instead of sleeping
+ * a fixed amount.
+ */
+export async function waitForPosition(
+    bot: NostaleBot,
+    predicate: (pos: Position) => boolean,
+    { timeout = 10000, interval = 300 }: WaitOptions & { interval?: number } = {}
+): Promise<Position> {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        const pos = await getPosition(bot);
+        if (pos && predicate(pos)) {
+            return pos;
+        }
+        await sleep(interval);
+    }
+    throw new Error(`Timed out after ${timeout}ms waiting for position match`);
 }

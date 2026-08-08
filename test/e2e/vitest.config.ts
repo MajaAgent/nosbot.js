@@ -5,8 +5,10 @@ export default defineConfig({
         include: ["test/e2e/**/*.test.ts"],
         testTimeout: 30000,
         hookTimeout: 30000,
-        // Each test uses a distinct account from the pool (test_1, test_2, ...),
-        // so files can safely run in parallel without colliding.
-        fileParallelism: true,
+        // NosCore drops packets when several bots log in to the world server at
+        // the exact same time (Encode Error / lost handshake), so run tests one
+        // at a time, in a single thread. Each still uses its own account.
+        singleThread: true,
+        fileParallelism: false,
     },
 });

@@ -132,7 +132,7 @@ export class NostaleBot extends EventEmitter {
         const nstest = parseNsTestPacket(nstestPacket);
         const sessionId = nstest.sessionId;
         logger.debug(`login: ${nstest.name}; sessionId: ${sessionId}`);
-        await sleep(1000);
+        await sleep(750);
 
         // connect to world server
         logger.debug("============= WORLD =============");
