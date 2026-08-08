@@ -8,7 +8,7 @@ type BotConfig = NostaleBot["config"];
 const TEST_ACCOUNT_COUNT = parseInt(process.env.SEED_TEST_ACCOUNTS || "10");
 const TEST_PASSWORD = process.env.SEED_PASSWORD || "testpass";
 
-/** Round-robin cursor over the test account pool. */
+/** Round-robin cursor over the test account pool (used when no worker id). */
 let accountCursor = 0;
 
 export interface TestAccount {
@@ -17,10 +17,20 @@ export interface TestAccount {
     characterName: string;
 }
 
-/** Returns the next test account from the pool (test_1 .. test_N). */
+/**
+ * Returns the test account for the current test file.
+ *
+ * Vitest runs each test file in its own worker, so `VITEST_WORKER_ID` gives a
+ * stable per-file index → worker 1 uses test_1, worker 2 uses test_2, etc.
+ * This prevents parallel files from all logging in as test_1. Without a worker
+ * id (plain node), falls back to round-robin over the pool.
+ */
 export function nextTestAccount(): TestAccount {
-    const index = (accountCursor % TEST_ACCOUNT_COUNT) + 1;
-    accountCursor++;
+    const workerId = parseInt(process.env.VITEST_WORKER_ID || "0");
+    const index = workerId > 0 ? workerId : (accountCursor % TEST_ACCOUNT_COUNT) + 1;
+    if (workerId <= 0) {
+        accountCursor++;
+    }
     return {
         login: `test_${index}`,
         password: TEST_PASSWORD,
