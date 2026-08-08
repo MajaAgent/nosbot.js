@@ -19,12 +19,12 @@ A one-command E2E test setup in this repo (fork `MajaAgent/nosbot.js`, branch `w
 - [01 — How does NosCore run in Docker?](issues/01-noscore-docker-runtime.md) — prebuilt Docker Hub images exist; run db+reverse-proxy+master+world+login via our own compose, schema auto-migrates, readiness from logs. Detail in `research/01-noscore-docker-runtime.md`.
 - [02 — Does NosCore support the `priv` login flow as nosbot.js implements it?](issues/02-noscore-priv-login-compat.md) — compatible; `priv` = NoS0575, account Password = uppercase SHA512 hex, no bot changes needed. Detail in `research/02-noscore-priv-login-compat.md`.
 - [03 — How to seed a test account + character in NosCore's database?](issues/03-seed-test-account.md) — SQL seed of Map (hand-built walkable grid) + Account + Character after migration; no game-client parser needed. Detail in `research/03-seed-test-account.md`.
+- [04 — Harness shape: one command + debug variant + Vitest + TS upgrade](issues/04-harness-shape.md) — `test-server/` + `test/e2e/`; `npm run test:e2e` (up→wait-ready→seed→vitest→down) + `server:up/down`; orchestrator waits for login "Database has been initialized" then starts master+world; readiness = world "Listening Port 1337"; TS bumped to 5.x; node `pg` seed, idempotent; fixed creds in `test/e2e/config.ts`; teardown in try/finally with `KEEP_SERVER=1`; Vitest testTimeout 30s.
 
 ## Not yet specified
 
 - Additional test scenarios beyond login (`walkTo`, `useEmoji`, event assertions) — the authoring system's whole point, but not this destination.
 - Multi-bot / parallel test sessions against one server.
-- Exact harness wiring (readiness poll on which signal, compose overrides for prebuilt images) — lands in 04 once 01–03 feed the grilling.
 
 ## Out of scope
 
