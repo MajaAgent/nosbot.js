@@ -151,17 +151,11 @@ async function main() {
             await runDataImport();
             break;
         case "e2e":
-            await upServer();
+            // Does NOT start/stop the stack — `server:up` / `server:down` do that.
+            // Only resets the test account state and runs the tests.
+            runSeed();
             console.log("Running vitest...");
-            try {
-                run("npx", ["vitest", "run", "--config", path.join(__dirname, "..", "test", "e2e", "vitest.config.ts")]);
-            } finally {
-                if (!process.env.KEEP_SERVER) {
-                    downServer();
-                } else {
-                    console.log("KEEP_SERVER set - leaving stack up.");
-                }
-            }
+            run("npx", ["vitest", "run", "--config", path.join(__dirname, "..", "test", "e2e", "vitest.config.ts")]);
             break;
         default:
             console.error("Usage: node orchestrator.mjs <up|down|seed|data|e2e>");
