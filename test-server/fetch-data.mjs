@@ -8,7 +8,14 @@ const DATA_DIR = path.join(__dirname, "data");
 const BIN_DIR = path.join(DATA_DIR, "bin");
 const ARCHIVE_DIR = path.join(DATA_DIR, "archives");
 const INPUT_DIR = path.join(DATA_DIR, "parser-input");
-const ONEX_BIN = path.join(BIN_DIR, process.platform === "win32" ? "OnexExplorerCli.exe" : "OnexExplorerCli");
+const ONEX_BIN = path.join(
+    BIN_DIR,
+    process.platform === "win32"
+        ? "OnexExplorerCli.exe"
+        : process.platform === "darwin"
+          ? "OnexExplorerCli-macos"
+          : "OnexExplorerCli-linux"
+);
 
 const ONEX_RELEASE = "v0.3.0";
 const ONEX_ASSET =
@@ -17,6 +24,10 @@ const ONEX_ASSET =
         : process.platform === "darwin"
           ? "OnexExplorerCli-macos"
           : "OnexExplorerCli-linux";
+
+const PACKET_TXT_URL =
+    "https://github.com/KILL009/Parse-Of-Opennos-NosCore/raw/refs/heads/master/NosCore-Opennos%20Parser/packet.txt";
+const PACKET_TXT_DEST = path.join(INPUT_DIR, "packet.txt");
 
 const DATA_DAT_FILES = [
     "act_desc.dat",
@@ -161,12 +172,25 @@ function convertMapsToGrid() {
     console.log(`[data] Converted ${pngs.length} maps.`);
 }
 
+async function fetchPacketTxt() {
+    if (existsSync(PACKET_TXT_DEST)) {
+        console.log("[data] packet.txt already present, skipping.");
+        return;
+    }
+    console.log("[data] Downloading packet.txt (captured packet stream for NPC/monster placement)...");
+    const res = spawnSync("curl", ["-sL", "-o", PACKET_TXT_DEST, PACKET_TXT_URL], { stdio: "inherit" });
+    if (res.status !== 0 || !existsSync(PACKET_TXT_DEST)) {
+        console.warn("[data] WARN: could not download packet.txt — maps will have no NPC/monsters.");
+    }
+}
+
 async function main() {
     ensureDirs();
     await ensureOnexBinary();
     await downloadArchives();
     await extractData();
     convertMapsToGrid();
+    await fetchPacketTxt();
     console.log(`\n[data] Done. Parser input ready at ${INPUT_DIR}`);
     console.log(`[data] Run the NosCore parser against this folder, e.g.:`);
     console.log(`  npm run server:data`);

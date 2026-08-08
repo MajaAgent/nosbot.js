@@ -57,6 +57,42 @@ interface AccountSeed {
 // Safe spawn on map 1 (Nosville, 160x180): cell (80,90) is walkable.
 const SPAWN = { mapId: 1, x: 80, y: 90 };
 
+function buildMapData(width: number, height: number): Buffer {
+    const buf = Buffer.alloc(4 + width * height);
+    buf.writeInt16LE(width, 0);
+    buf.writeInt16LE(height, 2);
+    return buf;
+}
+
+// Minimal fallback maps, only inserted when the DB has no map data at all
+// (fresh database before `npm run server:data`). When the NosCore parser has
+// imported real maps they are left untouched.
+async function ensureFallbackMaps(client: pg.Client): Promise<void> {
+    const mapCount = await client.query(`SELECT count(*)::int AS n FROM "Map"`);
+    if (mapCount.rows[0].n > 0) {
+        return;
+    }
+    const data = buildMapData(200, 200);
+    await client.query(
+        `INSERT INTO "Map" ("MapId", "Name", "Data", "Music", "ShopAllowed")
+         VALUES (1, 'E2E Test Map', $1, 0, false)`,
+        [data]
+    );
+    // Old Nosville — required by MinilandService.GetMinilandPortals (it
+    // hard-codes a miniland portal with SourceMapId 145).
+    await client.query(
+        `INSERT INTO "Map" ("MapId", "Name", "Data", "Music", "ShopAllowed")
+         VALUES (145, 'E2E Old Nosville', $1, 0, false)`,
+        [data]
+    );
+    await client.query(
+        `INSERT INTO "Map" ("MapId", "Name", "Data", "Music", "ShopAllowed")
+         VALUES (20001, 'E2E Miniland', $1, 0, false)`,
+        [data]
+    );
+    console.log("[seed] WARN: no map data found — inserted minimal fallback maps. Run `npm run server:data` for full game data.");
+}
+
 async function insertAccount(client: pg.Client, account: AccountSeed): Promise<void> {
     const passwordHash = sha512Hex(account.password);
 
@@ -143,6 +179,8 @@ async function seed(): Promise<void> {
         // via `npm run server:data` is left untouched.
         await client.query(`TRUNCATE TABLE "Character" RESTART IDENTITY CASCADE`);
         await client.query(`TRUNCATE TABLE "Account" RESTART IDENTITY CASCADE`);
+
+        await ensureFallbackMaps(client);
 
         for (const account of accounts) {
             await insertAccount(client, account);

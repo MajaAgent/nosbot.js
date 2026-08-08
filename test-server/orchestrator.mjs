@@ -116,7 +116,7 @@ async function runDataImport() {
             "-v", `${inputDir}:/data`,
             "-v", `${confDir}:/configuration`,
             "noscore-e2e-stack",
-            "dotnet", "NosCore.Parser.dll", "--folder", "/data",
+            "NosCore.Parser.dll", "--folder", "/data",
         ],
         { stdio: "inherit" }
     );

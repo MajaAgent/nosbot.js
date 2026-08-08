@@ -9,6 +9,8 @@ services:
       - POSTGRES_DB=noscore
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     networks:
       - noscore-e2e-network
 
@@ -73,3 +75,6 @@ services:
 networks:
   noscore-e2e-network:
     driver: bridge
+
+volumes:
+  pgdata:
