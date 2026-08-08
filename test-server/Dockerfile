@@ -14,7 +14,7 @@ RUN dotnet publish src/NosCore.WorldServer/NosCore.WorldServer.csproj -c Release
     && dotnet publish src/NosCore.MasterServer/NosCore.MasterServer.csproj -c Release -o /out
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
-RUN apk add --no-cache icu-libs
+RUN apk add --no-cache icu-libs krb5-libs
 WORKDIR /app
 COPY --from=build /out /app
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false

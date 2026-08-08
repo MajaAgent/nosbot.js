@@ -60,6 +60,59 @@ async function waitForSchema(client: pg.Client, timeoutMs = 60000, pollMs = 1000
     throw new Error("Timed out waiting for the Character table (schema migration)");
 }
 
+interface AccountSeed {
+    name: string;
+    password: string;
+    authority: number;
+    characterName: string;
+}
+
+async function insertAccount(
+    client: pg.Client,
+    account: AccountSeed,
+    mapId: number,
+    mapWidth: number,
+    mapHeight: number
+): Promise<void> {
+    const passwordHash = sha512Hex(account.password);
+    const centerX = Math.floor(mapWidth / 2);
+    const centerY = Math.floor(mapHeight / 2);
+
+    const accountRes = await client.query(
+        `INSERT INTO "Account"
+            ("Authority", "Name", "Password", "Language", "BankMoney", "ItemShopMoney")
+         VALUES ($1, $2, $3, 0, 0, 0)
+         RETURNING "AccountId"`,
+        [account.authority, account.name, passwordHash]
+    );
+    const accountId: number = accountRes.rows[0].AccountId;
+
+    await client.query(
+        `INSERT INTO "Character"
+            ("ServerId", "AccountId", "Act4Dead", "Act4Kill", "Act4Points", "ArenaWinner",
+             "Biography", "BuffBlocked", "Class", "Compliment", "Dignity", "Elo",
+             "EmoticonsBlocked", "ExchangeBlocked", "ShouldRename", "Faction",
+             "FamilyRequestBlocked", "FriendRequestBlocked", "Gender", "Gold",
+             "GroupRequestBlocked", "HairColor", "HairStyle", "HeroChatBlocked",
+             "HeroLevel", "HeroXp", "Hp", "HpBlocked", "JobLevel", "JobLevelXp",
+             "Level", "LevelXp", "MapId", "MapX", "MapY", "MasterPoints",
+             "MasterTicket", "MaxMateCount", "MinilandInviteBlocked", "MouseAimLock",
+             "Mp", "Prefix", "Name", "QuickGetUp", "RagePoint", "Reput", "Slot",
+             "SpAdditionPoint", "SpPoint", "State", "TalentLose", "TalentSurrender",
+             "TalentWin", "WhisperBlocked")
+         VALUES (0, $1, 0, 0, 0, 0, NULL, false, 0, 0, 0, 0, false, false, false,
+                 0, false, false, 0, 0, false, 0, 0, false, 0, 0, 100, false, 0,
+                 0, 1, 0, $2, $3, $4, 0, 0, 0, false, false, 100, NULL, $5, false,
+                 0, 0, 0, 0, 0, 1, 0, 0, 0, false)`,
+        [accountId, mapId, centerX, centerY, account.characterName]
+    );
+
+    console.log(
+        `Seeded account "${account.name}" (authority ${account.authority}, hash ${passwordHash.slice(0, 16)}...), ` +
+        `character "${account.characterName}" on map ${mapId} at (${centerX},${centerY}).`
+    );
+}
+
 async function connectWithRetry(config: SeedConfig, attempts = 10, delayMs = 1500): Promise<pg.Client> {
     let lastErr: unknown;
     for (let i = 0; i < attempts; i++) {
@@ -86,9 +139,21 @@ async function seed(): Promise<void> {
     await waitForSchema(client);
 
     const mapData = buildMapData(config.mapWidth, config.mapHeight);
-    const passwordHash = sha512Hex(config.accountPassword);
-    const centerX = Math.floor(config.mapWidth / 2);
-    const centerY = Math.floor(config.mapHeight / 2);
+
+    const accounts: AccountSeed[] = [
+        {
+            name: config.accountName,
+            password: config.accountPassword,
+            authority: 0,
+            characterName: config.characterName,
+        },
+        {
+            name: process.env.SEED_ADMIN || "admin",
+            password: process.env.SEED_ADMIN_PASSWORD || "admin",
+            authority: 3,
+            characterName: process.env.SEED_ADMIN_CHARACTER || "Admin",
+        },
+    ];
 
     try {
         await client.query("BEGIN");
@@ -116,41 +181,11 @@ async function seed(): Promise<void> {
             [mapData]
         );
 
-        const accountRes = await client.query(
-            `INSERT INTO "Account"
-                ("Authority", "Name", "Password", "Language", "BankMoney", "ItemShopMoney")
-             VALUES (0, $1, $2, 0, 0, 0)
-             RETURNING "AccountId"`,
-            [config.accountName, passwordHash]
-        );
-        const accountId: number = accountRes.rows[0].AccountId;
-
-        await client.query(
-            `INSERT INTO "Character"
-                ("ServerId", "AccountId", "Act4Dead", "Act4Kill", "Act4Points", "ArenaWinner",
-                 "Biography", "BuffBlocked", "Class", "Compliment", "Dignity", "Elo",
-                 "EmoticonsBlocked", "ExchangeBlocked", "ShouldRename", "Faction",
-                 "FamilyRequestBlocked", "FriendRequestBlocked", "Gender", "Gold",
-                 "GroupRequestBlocked", "HairColor", "HairStyle", "HeroChatBlocked",
-                 "HeroLevel", "HeroXp", "Hp", "HpBlocked", "JobLevel", "JobLevelXp",
-                 "Level", "LevelXp", "MapId", "MapX", "MapY", "MasterPoints",
-                 "MasterTicket", "MaxMateCount", "MinilandInviteBlocked", "MouseAimLock",
-                 "Mp", "Prefix", "Name", "QuickGetUp", "RagePoint", "Reput", "Slot",
-                 "SpAdditionPoint", "SpPoint", "State", "TalentLose", "TalentSurrender",
-                 "TalentWin", "WhisperBlocked")
-             VALUES (0, $1, 0, 0, 0, 0, NULL, false, 0, 0, 0, 0, false, false, false,
-                     0, false, false, 0, 0, false, 0, 0, false, 0, 0, 100, false, 0,
-                     0, 1, 0, $2, $3, $4, 0, 0, 0, false, false, 100, NULL, $5, false,
-                     0, 0, 0, 0, 0, 1, 0, 0, 0, false)`,
-            [accountId, config.mapId, centerX, centerY, config.characterName]
-        );
+        for (const account of accounts) {
+            await insertAccount(client, account, config.mapId, config.mapWidth, config.mapHeight);
+        }
 
         await client.query("COMMIT");
-
-        console.log(
-            `Seeded account "${config.accountName}" (password hash ${passwordHash.slice(0, 16)}...), ` +
-            `character "${config.characterName}" on map ${config.mapId} at (${centerX},${centerY}).`
-        );
     } catch (err) {
         await client.query("ROLLBACK");
         throw err;
