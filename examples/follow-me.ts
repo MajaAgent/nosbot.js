@@ -2,7 +2,7 @@
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { NostaleBot, NostaleEmoji } from "@gorlikitsme/nosbot.js";
+import { NostaleBot, NostaleEmoji, mapsPlugin, pathfindingPlugin, emojiPlugin } from "@gorlikitsme/nosbot.js";
 
 interface PlayerPos {
     id: number;
@@ -52,6 +52,10 @@ const bot = new NostaleBot({
     },
 });
 
+bot.use(mapsPlugin, { maps: [1] });
+bot.use(pathfindingPlugin);
+bot.use(emojiPlugin);
+
 function walkTo(bot: NostaleBot, x: number, y: number, speed = 13) {
     const w = ((x + y) % 3) % 2;
     bot.sendPacket(`walk ${x} ${y} ${w} ${speed}`);
@@ -61,13 +65,13 @@ bot.on("eff", (packet) => {
     // eff 1 14187 5073
     const p = packet.split(" ");
     if (p[1] != "1") return;
-    if (p[2] == `${bot.currentCharacter.id}`) return;
+    if (p[2] == `${bot.self.id}`) return;
     if (p[3] != "5073") return;
 
     const a = getPlayerPos(parseInt(p[2]));
     if (!a) return;
 
-    bot.useEmoji(NostaleEmoji.AltW);
+    bot.emoji.use(NostaleEmoji.AltW);
     console.log(`Go to ${a.x} ${a.y}`);
     walkTo(bot, a.x, a.y);
     bot.close();

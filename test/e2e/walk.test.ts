@@ -15,7 +15,9 @@ describe("NosCore E2E walk", () => {
             const targetX = SPAWN.x + 3;
             const targetY = SPAWN.y;
 
-            await bot.walkTo(targetX, targetY);
+            // Pathfinding walks along the walkable grid and resolves once the
+            // server confirms arrival.
+            await bot.pathfinding.pathTo(targetX, targetY);
 
             // Wait (polling $Position) until the server confirms the movement.
             const end = await waitForPosition(bot, (pos) => pos.x === targetX && pos.y === targetY);

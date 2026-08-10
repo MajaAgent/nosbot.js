@@ -3,7 +3,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 // import { NostaleBot, NostaleEmoji } from "@gorlikitsme/nosbot.js";
-import { NostaleBot, NostaleEmoji } from "../src/index";
+import { NostaleBot, NostaleEmoji, mapsPlugin, pathfindingPlugin, emojiPlugin } from "../src/index";
 const bot = new NostaleBot({
     auth: {
         type: "priv",
@@ -25,6 +25,11 @@ const bot = new NostaleBot({
         nostaleClientMd5Hash: "x",
     },
 });
+
+bot.use(mapsPlugin, { maps: [1] });
+bot.use(pathfindingPlugin);
+bot.use(emojiPlugin);
+
 bot.on("tit", (packet) => {
     // tit Adventurer gtest
     const name = packet.split(" ")[2];
@@ -36,7 +41,7 @@ bot.on("in", (packet) => {
     if (p[1] == "1") {
         // player
         console.log(`On map you see player with name ${p[2]} id: ${p[4]}`);
-        bot.useEmoji(NostaleEmoji.AltW);
+        bot.emoji.use(NostaleEmoji.AltW);
     }
 });
 

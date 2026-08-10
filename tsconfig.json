@@ -14,7 +14,11 @@
     "forceConsistentCasingInFileNames": true,
     "downlevelIteration": true,
     "removeComments": true,
-    "declaration": true
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@gorlikitsme/nosbot.js": ["src/index.ts"]
+    }
   },
   "include": [
     "src/**/*.ts"
