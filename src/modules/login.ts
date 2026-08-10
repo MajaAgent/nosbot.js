@@ -1,5 +1,5 @@
 import { createLogger } from "../logger";
-import { type NostaleBot } from "../NostaleBot";
+import type { NostaleBotConfig } from "../NostaleBot";
 import { PacketNsTeST, PacketNsTeST_Channel } from "../PacketHandler/nstest";
 import {
     createLoginPacketNos0577,
@@ -8,39 +8,38 @@ import {
 
 const logger = createLogger("NostaleBot");
 
-export function sendLoginPacket(bot: NostaleBot): void {
-    if (bot.config.auth.type == "priv") {
-        const packet = createLoginPacketPrivServer(
-            bot.config.auth.login,
-            bot.config.auth.password,
-            bot.config.game.installationId,
-            bot.config.game.nostaleClientXMd5Hash,
-            bot.config.game.nostaleClientMd5Hash,
-            bot.config.game.nostaleClientXVersion
+/** Builds the login packet for the configured auth type (priv / NoS0577 / custom). */
+export function createLoginPacket(config: NostaleBotConfig): string {
+    const auth = config.auth;
+    const game = config.game;
+    if (auth.type == "priv") {
+        return createLoginPacketPrivServer(
+            auth.login,
+            auth.password,
+            game.installationId,
+            game.nostaleClientXMd5Hash,
+            game.nostaleClientMd5Hash,
+            game.nostaleClientXVersion
         );
-        return bot.sendPacket(packet);
-    } else if (bot.config.auth.type == "custom") {
-        bot.sendPacket(bot.config.auth.customLoginPacket);
-    } else if (bot.config.auth.type == "NoS0577_with_token") {
-        const packet = createLoginPacketNos0577(
-            bot.config.auth.token,
-            bot.config.game.installationId,
-            bot.config.game.nostaleClientXMd5Hash,
-            bot.config.game.nostaleClientMd5Hash,
-            bot.config.game.nostaleClientXVersion
+    } else if (auth.type == "custom") {
+        return auth.customLoginPacket;
+    } else if (auth.type == "NoS0577_with_token") {
+        return createLoginPacketNos0577(
+            auth.token,
+            game.installationId,
+            game.nostaleClientXMd5Hash,
+            game.nostaleClientMd5Hash,
+            game.nostaleClientXVersion
         );
-        return bot.sendPacket(packet);
-    } else {
-        throw new Error(`Not implemented, login for bot auth.type`);
     }
+    throw new Error(`Not implemented, login for bot auth.type`);
 }
 
-/** Will return IP and PORT for channel to connect
- * checks what channels are avaible, what is in config, etc
- */
-export function pickWorldServer(bot: NostaleBot, nstest: PacketNsTeST): [string, number] {
-    const worldServer = bot.config.worldServer;
-
+/** Returns the IP and PORT of the channel to connect to, from the NsTeST channel list. */
+export function pickWorldServer(
+    worldServer: NostaleBotConfig["worldServer"],
+    nstest: PacketNsTeST
+): [string, number] {
     function conMsg(chan: PacketNsTeST_Channel) {
         return `Connecting to WorldServer ${chan.name} CH:${chan.channelId} (${chan.ip}:${chan.port})...`;
     }
@@ -96,39 +95,38 @@ export function pickWorldServer(bot: NostaleBot, nstest: PacketNsTeST): [string,
     throw new Error("Unexpected error, check your config.worldServer settings");
 }
 
-/**
- * Return charId used in select packet during selecting character
- * @param bot NostaleBot
- */
-export function selectCharacter(bot: NostaleBot): number {
-    const selCharConf = bot.config.selectCharacter;
-    if (selCharConf == undefined) {
+/** Returns the character id used in the `select` packet. Falls back to the first character. */
+export function selectCharacter(
+    selectCharacterConfig: NostaleBotConfig["selectCharacter"],
+    characterList: { id: number; name: string }[]
+): number {
+    if (selectCharacterConfig == undefined) {
         logger.warn("You have not selected a character to log. I will choose the first one");
-        return bot.characterList[0].id;
-    } else if ("byId" in selCharConf) {
-        const charById = bot.characterList.find((a) => a.id === selCharConf.byId);
+        return characterList[0].id;
+    } else if ("byId" in selectCharacterConfig) {
+        const charById = characterList.find((a) => a.id === selectCharacterConfig.byId);
         if (charById) {
             return charById.id;
         } else {
             logger.warn(
-                `Character with id ${selCharConf.byId} dont exits. Picking first one...`
+                `Character with id ${selectCharacterConfig.byId} dont exits. Picking first one...`
             );
-            return bot.characterList[0].id;
+            return characterList[0].id;
         }
-    } else if ("byName" in selCharConf) {
-        const charByName = bot.characterList.find(
-            (a) => a.name.toLowerCase() === selCharConf.byName.toLowerCase()
+    } else if ("byName" in selectCharacterConfig) {
+        const charByName = characterList.find(
+            (a) => a.name.toLowerCase() === selectCharacterConfig.byName.toLowerCase()
         );
         if (charByName) {
             return charByName.id;
         } else {
             logger.warn(
-                `Character with id ${selCharConf.byName} dont exits. Picking first one...`
+                `Character with id ${selectCharacterConfig.byName} dont exits. Picking first one...`
             );
-            return bot.characterList[0].id;
+            return characterList[0].id;
         }
     } else {
         logger.warn("You have not selected a character to log. I will choose the first one");
-        return bot.characterList[0].id;
+        return characterList[0].id;
     }
 }

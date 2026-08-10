@@ -1,4 +1,7 @@
 import { NostaleBot } from "../../src/index";
+import { mapsPlugin } from "../../src/plugins/maps";
+import { pathfindingPlugin } from "../../src/plugins/pathfinding";
+import { emojiPlugin } from "../../src/plugins/emoji";
 import { testConfig } from "./config";
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -41,12 +44,16 @@ export function nextTestAccount(): TestAccount {
 /** Creates a bot with the shared test config, defaulting to `priv` auth. */
 export function createBot(overrides: Partial<BotConfig> = {}): NostaleBot {
     const account = nextTestAccount();
-    return new NostaleBot({
+    const bot = new NostaleBot({
         ...testConfig,
         auth: { type: "priv", login: account.login, password: account.password },
         selectCharacter: { byName: account.characterName },
         ...overrides,
     });
+    bot.use(mapsPlugin, { maps: [1] });
+    bot.use(pathfindingPlugin);
+    bot.use(emojiPlugin);
+    return bot;
 }
 
 export interface WaitOptions {

@@ -23,9 +23,12 @@ export class TcpClientManager {
     private encodingStream: NodeJS.ReadWriteStream;
     private decodingStream: NodeJS.ReadWriteStream;
 
+    public sessionId?: number;
+
     constructor(sessionId?: number, onClose?: () => void) {
         this.socket = new Net.Socket();
         this.client = new PromiseSocket(this.socket);
+        this.sessionId = sessionId;
 
         this.encryptStream = nosCrypto.createCipher(sessionId);
         this.decryptStream = nosCrypto.createDecipher(sessionId);

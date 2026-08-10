@@ -16,7 +16,7 @@ describe("NosCore E2E emoji", () => {
                 return parts[0] === "eff" && parts.includes("5073");
             });
 
-            bot.useEmoji(NostaleEmoji.AltW);
+            bot.emoji.use(NostaleEmoji.AltW);
 
             const eff = await effPromise;
             expect(eff).toMatch(/^eff /);
